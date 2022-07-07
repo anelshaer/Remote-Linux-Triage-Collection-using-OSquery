@@ -11,19 +11,24 @@ Ansible Playbook that uses OSquery to collect linux live forensics artifacts fro
 
 To be able to see this in action
 
-* [Install Docker] (https://docs.docker.com/get-docker/)
-* Build Docker images for IR/Control node, 2 target machines.
+1. Clone this repository
+```bash
+git clone https://github.com/anelshaer/Remote-Linux-Triage-Collection-using-OSquery.git
+cd dev/
+```
+2. [Install Docker] (https://docs.docker.com/get-docker/)
+3. Build Docker images for IR/Control node, 2 target machines.
 ```bash
 sudo docker build -t ansible-control -f Dockerfile.ansible .
 sudo docker build -t ansible-osquery-c7 -f Dockerfile.centos .
 sudo docker build -t ansible-osquery-u1604 -f Dockerfile.ubuntu .
 ```
-* Run docker-compose 
+4. Run docker-compose 
 ```bash
 docker-compose up --abort-on-container-exit
 ```
 
-* Find the collection artifacts located under a new directory named `playbooks/triage_results`
+5. Find the collection artifacts located under a new directory named `playbooks/triage_results`
 ### Dependencies
 
 * Ansible - should be installed on the IR machine
@@ -40,10 +45,12 @@ docker-compose up --abort-on-container-exit
 
 ### Executing program
 
+* Clone the repository
+* Change Directory to `playbooks`
 * The current `Inventory/hosts` meant to be used with the demo environment, add/change hosts as needed.
 * OSqueryi has to be located at `files/bin/osqueryi`
 
-To run the playbook you may use one of these commands depending on the needed output format:
+* Run the playbook you may use one of these commands depending on the needed output format:
 ```bash
 'Run Remote Collection with TXT output'
 ansible-playbook -i Inventory/hosts  remote_linux_triage_collection.yaml
@@ -67,6 +74,7 @@ Note: you may need to use these options
 ```bash
 ansible-playbook -i Inventory/hosts -kK remote_linux_triage_collection.yaml
 ```
+* Find the collection artifacts located under a new directory named `playbooks/triage_results`
 
 ## Help / contribution
 
