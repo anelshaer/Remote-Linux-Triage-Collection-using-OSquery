@@ -1,6 +1,6 @@
 # Remote Linux Triage Collection Using OSquery
 
-Remotly collect linux live forensics artifacts. 
+Remotely collect linux live forensics artifacts.
 
 ## Description
 
