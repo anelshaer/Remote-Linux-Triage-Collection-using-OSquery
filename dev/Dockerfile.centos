@@ -1,0 +1,8 @@
+FROM centos:7
+
+RUN yum -y install openssh openssh-server openssh-clients sudo && \
+    yum -y clean all
+RUN echo 'root:P@ssw0rd123' | chpasswd
+RUN ssh-keygen -A
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D"]

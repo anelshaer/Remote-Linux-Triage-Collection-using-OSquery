@@ -1,0 +1,45 @@
+version: '3.7'
+
+networks:
+  ansible-osquery:
+    name: ansible-osquery
+
+services:
+  ansible-control:
+    image: "ansible-control"
+    volumes:
+      - ../playbooks:/home/ansible
+    command: sh -c "
+     echo 'Sleeping 10 sec' &&
+     sleep 10 &&
+     echo 'Running Triage Collection' &&
+     ./files/scripts/run_triage.sh &&
+     echo 'Check Logs under triage_results' && exit 0"
+    ulimits:
+      core:
+        hard:  1000000000
+        soft:  1000000000
+    networks:
+      - ansible-osquery
+
+  ansible-osquery-u1604:
+    image: "ansible-osquery-u1604:latest"
+    ulimits:
+      core:
+        hard:  1000000000
+        soft:  1000000000
+    networks:
+      - ansible-osquery
+    depends_on:
+      - ansible-control
+
+  ansible-osquery-c7:
+    image: "ansible-osquery-c7"
+    ulimits:
+      core:
+        hard:  1000000000
+        soft:  1000000000
+    networks:
+      - ansible-osquery
+    depends_on:
+      - ansible-control

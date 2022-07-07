@@ -1,0 +1,159 @@
+---
+- name: "Remote Linux Triage Collection using OSquery - Ahmed Elshaer"
+  hosts: hosts
+  become: true
+  vars:
+    osqueryi_local: "{{ playbook_dir }}/files/bin/osqueryi"
+    osqueryi_remote: "/usr/bin/osqueryi"
+    results_dir_base: "{{ playbook_dir }}/triage_results"
+    results_dir_fqdn: "{{ results_dir_base }}/{{ ansible_fqdn }}"
+    results_dir: "{{ results_dir_fqdn }}/{{ ansible_fqdn }}_{{ execution_time }}"
+    json_logs: false
+    csv_logs: false
+    queries:
+    - { name: "Collecting System info", query: "SELECT * FROM system_info;" ,file: "system_info_logs" }
+    - { name: "Collecting OS info", query: "SELECT name, version, major, minor, patch, platform FROM os_version;",file: "os_info_logs" }
+    - { name: "Collecting osquery info", query: "SELECT * FROM osquery_info;" ,file: "osquery_info_logs" }
+    - { name: "Collecting All processes", query: "SELECT * FROM processes;" ,file: "processes_logs" }
+    - { name: "Collecting Process environment variables", query: "SELECT e.pid,p.name,e.key,e.value FROM process_envs e join processes p using(pid);" ,file: "processes_env_logs" }
+    - { name: "Collecting Processes with LD_PRELOAD", query: "SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key = 'LD_PRELOAD';" ,file: "processes_ld_preload_logs" }
+    - { name: "Collecting Processes with open sockets", query: "SELECT distinct pos.pid,p.name,p.cmdline, family, protocol, local_address, local_port, remote_address, remote_port, pos.path FROM process_open_sockets pos JOIN processes p using(pid) WHERE remote_address  NOT IN ('','0.0.0.0','127.0.0.1', '::');" ,file: "processes_open_sockets_logs" }
+    - { name: "Collecting processes with Listening ports", query: "SELECT p.name, p.pid, p.path, p.cmdline, p.cwd, l.address,l.port, u.username FROM listening_ports l JOIN processes p USING (pid) JOIN users u on p.uid=u.uid WHERE l.port!=0;" ,file: "processes_listeing_ports_logs" }
+    - { name: "Collecting docker images", query: "select * from docker_images;" ,file: "docker_images_logs" }
+    - { name: "Collecting docker volumes", query: "SELECT * FROM docker_volumes;" ,file: "docker_volumes_logs" }
+    - { name: "Collecting docker containers", query: "select * from docker_containers;" ,file: "docker_containers_logs" }
+    - { name: "Collecting docker containers labels", query: "select * from docker_container_labels;",file: "docker_containers_labels_logs" }
+    - { name: "Collecting docker containers processes", query: "SELECT * FROM docker_container_processes processes JOIN docker_containers containers JOIN docker_container_ports ports ON containers.id=processes.id WHERE processes.id IN (SELECT id FROM docker_containers);"  ,file: "docker_containers_processes_ports_logs" }
+    - { name: "Collecting ARP Entries", query: "SELECT * FROM arp_cache;" ,file: "arp_logs" }
+    - { name: "Collecting DNS resolvers", query: "SELECT * FROM dns_resolvers;" ,file: "dns_resolvers_logs" }
+    - { name: "Collecting etc hosts", query: "SELECT * FROM etc_hosts;" ,file: "etc_hosts_logs" }
+    - { name: "Collecting login attempts", query: "SELECT username,host,pid,tty,type,time FROM last WHERE username!='';" ,file: "last_logs" }
+    - { name: "Collecting Current logged in users", query: "SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid AND liu.type='user' AND liu.user != '' ORDER BY time;" ,file: "logged_in_users_logs" }
+    - { name: "Collecting Local User accounts", query: "select * from users join shadow using(username);" ,file: "local_users_logs" }
+    - { name: "Collecting Active Local User Accounts", query: "SELECT * FROM shadow WHERE password_status='active';"  ,file: "local_users_active_logs" }
+    - { name: "Collecting Local Groups", query: "SELECT * FROM groups;" ,file: "local_groups_logs" }
+    - { name: "Collecting sudoers", query: "SELECT * FROM sudoers;" ,file: "sudoers_logs" }
+    - { name: "Collecting Local Users Authorized Keys", query: "select * from authorized_keys join users using(uid) where users.uid in (select uid from users);" ,file: "local_users_auth_keys_logs" }
+    - { name: "Collecting Domain Users Authorized Keys", query: "SELECT *  FROM users join authorized_keys using (uid) WHERE  username in (SELECT distinct(username) FROM last);" ,file: "domain_users_auth_keys_logs" }
+    - { name: "Collecting Local Users SSH Key Info", query: "SELECT * FROM users cross join user_ssh_keys using(uid);" ,file: "local_users_ssh_keys_logs" }
+    - { name: "Collecting Domain Users SSH Key Info", query: "SELECT * FROM users cross join user_ssh_keys using (uid) WHERE username in (SELECT distinct(username) FROM last);" ,file: "domain_users_ssh_keys_logs" }
+    - { name: "Collecting shell History for local users", query: "SELECT uid,time,command,history_file,username,description,directory,shell FROM users CROSS JOIN shell_history USING (uid);" ,file: "local_users_shell_history_logs" }
+    - { name: "Collecting shell History for domain users", query: "SELECT uid,time,command,history_file,username,description,directory,shell FROM users CROSS JOIN shell_history USING (uid) WHERE  username in (SELECT distinct(username) FROM last);" ,file: "domain_users_shell_history_logs" }
+    - { name: "Collecting Crontab Jobs", query: "SELECT * FROM crontab;" ,file: "crontab_logs" }
+    - { name: "Collecting Installed RPM Packges", query: "SELECT name, version, release,size, source, sha1, install_time, vendor FROM rpm_packages;" ,file: "packages_rpm_logs" }
+    - { name: "Collecting YUM sources", query: "SELECT name, baseurl, enabled, gpgcheck FROM yum_sources;" ,file: "packages_yum_sources_logs" }
+    - { name: "Collecting Installed DEP Packages", query: "SELECT name, version, source, size, status, maintainer, admindir FROM deb_packages;" ,file: "packages_dep_logs" }
+    - { name: "Collecting APT sources", query: "SELECT name, source, base_uri, release, version, maintainer FROM apt_sources;" ,file: "packages_apt_sources_logs" }
+    - { name: "Collecting Python Packages", query: "SELECT name,version,author,summary,license FROM python_packages;" ,file: "packages_python_logs" }
+    - { name: "Collecting shell History accross all users", query: "SELECT uid,time,command,history_file,username,description,directory,shell FROM users CROSS JOIN shell_history USING (uid);" ,file: "shell_history_all_logs" }
+    - { name: "Collecting Mounts", query: "SELECT device, device_alias, path, type, blocks_size, flags FROM mounts;" ,file: "mounts_logs" }
+    - { name: "Collecting Devices", query: "select * from block_devices;" ,file: "devices_logs" }
+    - { name: "Collecting Network Interfaces", query: "SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface);" ,file: "network_interfaces_logs" }
+    - { name: "Collecting Kernel Modules", query: "SELECT * FROM kernel_modules" ,file: "kernel_modules_logs" }
+    - { name: "Collecting SUID Bin", query: "SELECT * FROM suid_bin;" ,file: "suid_bin_logs" }
+    - { name: "Collecting IPtables", query: "SELECT * FROM iptables;" ,file: "iptables_logs" }
+    - { name: "Collecting file info under domain user homes", query: "select path, filename,sha256,uid,mode,size,atime,mtime,ctime,btime from file join hash using(path) where path like (select distinct(directory)||'/%' AS path from users join last using(username));" ,file: "domain_users_files_hashes_logs" }
+    - { name: "Collecting file info under local user homes", query: "SELECT path, filename,sha256,uid,mode,size,atime,mtime,ctime,btime from file join hash using(path) where path like (select distinct(directory)||'/%' AS path from users);" ,file: "local_users_files_hashes_logs" }
+    - { name: "Collecting file info under home", query: "select path,filename,sha256,uid,mode,size,atime,mtime,ctime,btime from file join hash using(path) where path like '/home/%%';" ,file: "system_home_file_hashes_logs" }
+    - { name: "Collecting file info under tmp", query: "select path,filename,sha256,uid,mode,size,atime,mtime,ctime,btime from file join hash using(path) where path like '/tmp/%%';" ,file: "system_tmp_file_hashes_logs" }
+    - { name: "Collecting file info under etc", query: "select path,filename,sha256,uid,mode,size,atime,mtime,ctime,btime from file join hash using(path) where path like '/etc/%%';" ,file: "system_etc_file_hashes_logs" }
+    - { name: "Collecting file info under usr bin/sbin", query: "select path,filename,sha256,uid,mode,size,atime,mtime,ctime,btime from file join hash using(path) where path like '/usr/bin/%%' or path like '/usr/sbin/%%';" ,file: "system_usr_file_hashes_logs" }
+
+  pre_tasks:
+    - name: "Check if OSquery is installed on the remote system?"
+      package:
+        name: osquery
+        state: present
+      check_mode: true
+      register: remote_osquery_exists
+      ignore_errors: yes
+
+    - name: "Check if OSqueryi exists locally at: {{ osqueryi_local }} ?"
+      stat:
+        path: "{{ osqueryi_local }}"
+      run_once: true
+      register: osqueryi_local_bin_exists
+      delegate_to: localhost
+
+    - name: "Fail when OSquery doesn't exist remotlly nor locally"
+      fail: 
+        msg: "OSquery was not installed and couldn't be found locally. Please Download OSquery and ensure OSqueryi is located at: {{ osqueryi_local }}"
+      when: remote_osquery_exists.failed  == true and osqueryi_local_bin_exists.stat.exists == false
+
+    - name: "OSquery was not installed - Upload from local: {{ osqueryi_local }} - To remote: {{ osqueryi_remote }}"
+      copy:
+        src: "{{ osqueryi_local }}"
+        dest: "{{ osqueryi_remote }}"
+        mode: u=rwx,g=rx,o=rx
+      when: remote_osquery_exists.failed  == true and osqueryi_local_bin_exists.stat.exists == true
+
+    - name: Determining Log File Extension (JSON, CSV, or Text)
+      set_fact:
+        logs_extension: "{{ 'csv' if csv_logs else 'json' if not csv_logs and json_logs else 'txt' }}"
+
+  tasks:
+    - name: "Running OSquery remote collection - Format: {{ logs_extension }}"
+      command:
+        cmd: osqueryi --json="{{ json_logs }}" --csv="{{ csv_logs }}" "{{ item.query }}"
+      become: yes
+      become_user: root
+      register: osquery_output
+      loop:
+        "{{ queries }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: "Get the First Execution Time"
+      set_fact:
+        execution_time: "{{ ansible_date_time.iso8601_basic }}"
+      run_once: yes
+      delegate_to: localhost
+
+    - name: "Create Results directory and Logs directory in: {{ results_dir_base }}"
+      ansible.builtin.file:
+        path: "{{ results_dir }}"        
+        state: directory
+      delegate_to: localhost
+
+    - name: "Create Logs directory in: {{ results_dir_base }}"
+      ansible.builtin.file:
+        path: "{{ results_dir_base }}/logs"
+        state: directory
+      run_once: true
+      delegate_to: localhost
+
+    - name: "Save OSquery logs to local directory: {{ results_dir_base }}"
+      local_action:
+        module: copy
+        content: "{{ item.stdout }}"
+        dest: "{{ results_dir }}/{{ansible_fqdn}}_{{ execution_time }}_{{ queries[index].file }}.{{ logs_extension }}"
+      loop:
+        "{{ osquery_output.results }}"
+      loop_control:
+        index_var: index
+        label: "{{ queries[index].name }}"
+
+  post_tasks:
+    - name: "Deleting previously uploaded OSqueryi executable: {{ osqueryi_remote }}"
+      file:
+        path: "{{ osqueryi_remote }}"
+        state: absent
+      when: remote_osquery_exists.failed  == true
+
+    - name: "Archiving triage results"
+      archive:
+        path: "{{ results_dir }}"
+        dest: "{{ results_dir_base }}/{{ ansible_fqdn }}_{{ logs_extension }}_{{ execution_time }}.zip"
+        format: zip
+      delegate_to: localhost  
+
+    - name: "Removing unarchived results"
+      file:
+        path: "{{ results_dir_fqdn }}"
+        state: absent
+      delegate_to: localhost
+
+    - name: "Rename Ansible Log File with Timestamp: {{ execution_time }}"
+      command: mv "{{ playbook_dir }}/ansible.log" "{{ results_dir_base }}/logs/ansible_{{ execution_time }}.log"
+      run_once: true
+      delegate_to: localhost
