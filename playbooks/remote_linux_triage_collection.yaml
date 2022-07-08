@@ -115,9 +115,9 @@
         state: directory
       delegate_to: localhost
 
-    - name: "Create Logs directory in: {{ results_dir_base }}"
+    - name: "Create Execution Logs directory in: {{ results_dir_base }}"
       ansible.builtin.file:
-        path: "{{ results_dir_base }}/logs"
+        path: "{{ results_dir_base }}/execution_logs"
         state: directory
       run_once: true
       delegate_to: localhost
@@ -153,7 +153,7 @@
         state: absent
       delegate_to: localhost
 
-    - name: "Rename Ansible Log File with Timestamp: {{ execution_time }}"
-      command: mv "{{ playbook_dir }}/ansible.log" "{{ results_dir_base }}/logs/ansible_{{ execution_time }}.log"
+    - name: "Rename Execution Log File with Timestamp: {{ execution_time }}"
+      command: mv "{{ playbook_dir }}/ansible.log" "{{ results_dir_base }}/execution_logs/ansible_{{ execution_time }}.log"
       run_once: true
       delegate_to: localhost
