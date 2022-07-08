@@ -8,9 +8,9 @@ Ansible Playbook that uses OSquery to collect linux live forensics artifacts fro
 
 ## Getting Started
 ### Sample Output
-![Single File per machine - zipped TXT/CSV/JSON output](https://github.com/anelshaer/Remote-Linux-Triage-Collection-using-OSquery/tree/main/screenshots/zipped_mutiple_machines_triage_results.png?raw=true)
-![Complete Execution Logs](https://github.com/anelshaer/Remote-Linux-Triage-Collection-using-OSquery/tree/main/screenshots/execution_logs.png?raw=true)
-![Listing of all results returned from a sample machine](https://github.com/anelshaer/Remote-Linux-Triage-Collection-using-OSquery/tree/main/screenshots/unzipped_single_machine_triage_results.png?raw=true)
+![Single File per machine - zipped TXT/CSV/JSON output](https://github.com/anelshaer/Remote-Linux-Triage-Collection-using-OSquery/blob/main/screenshots/zipped_mutiple_machines_triage_results.png?raw=true)
+![Complete Execution Logs](https://github.com/anelshaer/Remote-Linux-Triage-Collection-using-OSquery/blob/main/screenshots/execution_logs.png?raw=true)
+![Listing of all results returned from a sample machine](https://github.com/anelshaer/Remote-Linux-Triage-Collection-using-OSquery/blob/main/screenshots/unzipped_single_machine_triage_results.png?raw=true)
 
 ### Demo Environment
 
